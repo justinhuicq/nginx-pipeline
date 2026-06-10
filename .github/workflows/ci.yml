@@ -1,0 +1,49 @@
+name: CI Pipeline Nginx
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupérer le code
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # 2. Vérifier la présence des fichiers requis
+      - name: Vérification des fichiers
+        run: |
+          echo "Vérification de nginx.conf..."
+          test -f nginx.conf || (echo "ERREUR: nginx.conf manquant" && exit 1)
+
+          echo "Vérification de index.html..."
+          test -f index.html || (echo "ERREUR: index.html manquant" && exit 1)
+
+          echo "Vérification de Dockerfile..."
+          test -f Dockerfile || (echo "ERREUR: Dockerfile manquant" && exit 1)
+
+          echo "Tous les fichiers sont présents."
+
+      # 3. Build de l'image Docker
+      - name: Build de l'image Docker
+        run: docker build -t nginx-pipeline:test .
+
+      # 4. Tester la configuration nginx
+      - name: Test de la configuration Nginx
+        run: |
+          docker run --rm nginx-pipeline:test nginx -t
+          echo "Configuration nginx valide."
+
+      # 5. Démarrer le conteneur et vérifier qu'il répond
+      - name: Test de démarrage du conteneur
+        run: |
+          docker run -d --name test-nginx -p 8080:80 nginx-pipeline:test
+          sleep 3
+          curl -f http://localhost:8080 || (echo "ERREUR: le serveur ne répond pas" && exit 1)
+          echo "Serveur nginx opérationnel."
+          docker stop test-nginx
