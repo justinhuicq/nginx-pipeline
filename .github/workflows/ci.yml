@@ -24,7 +24,7 @@ jobs:
           echo "Vérification de index.html..."
           test -f index.html || (echo "ERREUR: index.html manquant" && exit 1)
 
-          echo "Vérification de Dockerfile..."
+          echo "Vérification de dockerfile..."
           test -f Dockerfile || (echo "ERREUR: Dockerfile manquant" && exit 1)
 
           echo "Tous les fichiers sont présents."
