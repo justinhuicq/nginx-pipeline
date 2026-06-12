@@ -1,4 +1,4 @@
-name: CI Pipeline Nginx
+name: CI Pipeline Nginx — Niveau 2
 
 on:
   push:
@@ -11,41 +11,66 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le code
+      # ── 1. Checkout ──────────────────────────────────────────
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Debug - liste des fichiers
+      # ── 2. Debug (optionnel, à retirer après validation) ─────
+      - name: Liste des fichiers
         run: ls -la
-      # 2. Vérifier la présence des fichiers requis
-      - name: Vérification des fichiers
+
+      # ── 3. Vérification des fichiers essentiels ───────────────
+      - name: Vérification des fichiers essentiels
         run: |
-          echo "Vérification de nginx.conf..."
-          test -f nginx.conf || (echo "ERREUR: nginx.conf manquant" && exit 1)
+          for f in Dockerfile nginx.conf index.html; do
+            if [ ! -f "$f" ]; then
+              echo "ERREUR : $f est manquant"
+              exit 1
+            fi
+            echo "OK : $f présent"
+          done
 
-          echo "Vérification de index.html..."
-          test -f index.html || (echo "ERREUR: index.html manquant" && exit 1)
-
-          echo "Vérification de Dockerfile..."
-          test -f Dockerfile || (echo "ERREUR: Dockerfile manquant" && exit 1)
-
-          echo "Tous les fichiers sont présents."
-
-      # 3. Build de l'image Docker
+      # ── 4. Build de l'image Docker ────────────────────────────
       - name: Build de l'image Docker
         run: docker build -t nginx-pipeline:test .
 
-      # 4. Tester la configuration nginx
+      # ── 5. Test de la config nginx ────────────────────────────
       - name: Test de la configuration Nginx
         run: |
           docker run --rm nginx-pipeline:test nginx -t
           echo "Configuration nginx valide."
 
-      # 5. Démarrer le conteneur et vérifier qu'il répond
-      - name: Test de démarrage du conteneur
+      # ── 6. Démarrage du conteneur ─────────────────────────────
+      - name: Démarrage du conteneur
         run: |
           docker run -d --name test-nginx -p 8080:80 nginx-pipeline:test
           sleep 3
-          curl -f http://localhost:8080 || (echo "ERREUR: le serveur ne répond pas" && exit 1)
-          echo "Serveur nginx opérationnel."
-          docker stop test-nginx
+
+      # ── 7. Test HTTP — page principale ────────────────────────
+      - name: Test HTTP — page principale
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+          echo "HTTP status reçu : $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "ERREUR : le service ne répond pas en HTTP 200"
+            exit 1
+          fi
+          echo "OK : le service répond en HTTP."
+
+      # ── 8. Test endpoint /health ──────────────────────────────
+      - name: Test endpoint /health
+        run: |
+          RESPONSE=$(curl -s http://localhost:8080/health)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)
+          echo "Réponse /health : $RESPONSE"
+          echo "HTTP status : $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "ERREUR : /health ne répond pas 200"
+            exit 1
+          fi
+          echo "OK : endpoint /health opérationnel."
+
+      # ── 9. Nettoyage ──────────────────────────────────────────
+      - name: Nettoyage du conteneur
+        if: always()
+        run: docker stop test-nginx || true
