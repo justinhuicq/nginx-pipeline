@@ -148,13 +148,3 @@ curl http://localhost:8080/health
 - Docker
 - Un compte GitHub avec Actions activé
 ```
-
----
-
-Commite-le ainsi :
-
-```bash
-git add README.md
-git commit -m "docs: mise à jour README niveau 2 — healthcheck, pipeline complète, sécurité"
-git push
-```
